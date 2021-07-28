@@ -4,13 +4,20 @@ const typeDefs = gql`
   type User {
     _id: ID!
     username: String!
+    password: String
+    userid: Int
+  }
+
+  input UserInput {
+    username: String!
     password: String!
   }
 
   type ScoredGame {
     _id: ID
     scoredName: String
-    score: String
+    score: Int
+    userid: Int
     createdAt: String
   }
 
@@ -18,6 +25,7 @@ const typeDefs = gql`
     _id: ID
     timedName: String
     duration: String
+    userid: Int
     createdAt: String
   }
 
@@ -30,19 +38,32 @@ const typeDefs = gql`
     users: [User]
     user(username: String!): User
     timedGames(username: String): [TimedGame]
-    timedGame(timedGameId: ID!): TimedGame
+    timedGame(_id: ID!): TimedGame
     scoredGames(username: String): [ScoredGame]
-    scoredGame(scoredGameId: ID!): ScoredGame
+    scoredGame(_id: ID!): ScoredGame
     me: User
   }
 
   type Mutation {
-    addUser(username: String!, password: String!): Auth
+    addUser(username: String!, password: String!, userid: Int!): Auth
     login(username: String!, password: String!): Auth
-    addScoredGame(scoredGame: String!): ScoredGame
-    addTimedGame(timedGame: String!): TimedGame
-    removeScoredGame(scoredGameId: ID!): ScoredGame
-    removeTimedGame(timedGameId: ID!): TimedGame
+    addGameScore(scoredName: String!, score: Int!, userid: Int!): ScoredGame
+    addGameTime(timedName: String!, duration: String!, userid: Int!): TimedGame
+    updateGameScore(scoredName: String!, score: Int!, userid: Int!): ScoredGame
+    updateTimedGame(
+      _id: ID!
+      timedName: String
+      duration: String
+      userid: Int
+    ): TimedGame
+    updateScoredGame(
+      _id: ID!
+      scoredName: String
+      score: Int
+      userid: Int
+    ): ScoredGame
+    removeTimedGame(_id: ID!): TimedGame
+    removeScoredGame(_id: ID!): ScoredGame
   }
 `;
 

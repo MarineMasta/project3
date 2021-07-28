@@ -1,42 +1,65 @@
-const { User, Games } = require("../models");
+const { Users, ScoredGames, TimedGames } = require("../models");
+// const User = require("../models/Users");
 
 const resolvers = {
   Query: {
-    usernames: async () => {
-      return User.find().populate("games");
+    users: async () => {
+      try {
+        const users = await Users.find({});
+        return users;
+      } catch (error) {
+        console.log(error);
+      }
     },
-    username: async (parent, { username }) => {
-      return User.findOne({ username }).populate("games");
+    user: async (parent, { _id }) => {
+      return User.findOne({ _id: _id }).populate("scoredGame", "timedGame");
     },
     scoredGames: async (parent, { username }) => {
       const params = username ? { username } : {};
-      return scoredGame.find(params).sort({ createdAt: -1 });
+      return ScoredGames.find(params).sort({ createdAt: -1 });
     },
-    scoredGame: async (parent, { scoredGameId }) => {
-      return ScoredGame.findOne({ _id: scoredGameId });
+    scoredGame: async (parent, { _id }) => {
+      return ScoredGames.findOne({ _id: _id });
     },
     timedGames: async (parent, { username }) => {
       const params = username ? { username } : {};
-      return timedGame.find(params).sort({ createdAt: -1 });
+      return TimedGames.find(params).sort({ createdAt: -1 });
     },
-    timedGame: async (parent, { timedGameId }) => {
-      return TimedGame.findOne({ _id: timedGameId });
+    timedGame: async (parent, { _id }) => {
+      return TimedGames.findOne({ _id: _id });
+    },
+    me: async (parent, args, context) => {
+      if (context.user) {
+        return User.findOne({ _id: context.user.id }).populate(
+          "scoredGames",
+          "timedGame"
+        );
+      }
+      throw new AuthenticationError("You need to be logged in!");
     },
   },
+
   Mutation: {
-    addUser: async (parent, { username, password }) => {
-      const user = await User.create({ username, password });
-      const token = signToken(user);
-      return { token, user };
+    // addUser: async (parent, args) => {
+    //   const user = await User.create(args);
+    //   const token = signToken(user);
+
+    //   return { token, user };
+    // },
+    addUser: async (parent, { username, password, userid }) => {
+      const user = await User.create({ username, password, userid });
+      const token = signToken(User);
+      return { token, User };
     },
+
     login: async (parent, { username, password }) => {
       const user = await User.findOne({ username });
 
-      if (!user) {
+      if (!User) {
         throw new AuthenticationError("No user found with this username");
       }
 
-      const correctPw = await user.isCorrectPassword(password);
+      const correctPw = await User.isCorrectPassword(password);
 
       if (!correctPw) {
         throw new AuthenticationError("Incorrect credentials");
@@ -44,69 +67,66 @@ const resolvers = {
 
       const token = signToken(user);
 
-      return { token, user };
+      return { token, User };
     },
-    addScoredGame: async (parent, { scoredGame }, context) => {
-      if (context.user) {
-        const scoredGame = await ScoredGame.create({
-          scoredGame,
-          username: context.user.username,
-        });
 
-        await User.findOneAndUpdate(
-          { _id: context.user._id },
-          { $addToSet: { scoredGames: scoredGame._id } }
-        );
-
-        return scoredGame;
-      }
-      throw new AuthenticationError("You need to be logged in!");
+    addGameScore: async (parent, { scoredName, score, userid }) => {
+      // Create and return the new School object
+      return await ScoredGames.create({ scoredName, score, userid });
     },
-    addTimedGame: async (parent, { timedGame }, context) => {
-      if (context.user) {
-        const timedGame = await TimedGame.create({
-          timedGame,
-          username: context.user.username,
-        });
 
-        await User.findOneAndUpdate(
-          { _id: context.user._id },
-          { $addToSet: { timedGames: timedGame._id } }
-        );
-
-        return timedGame;
-      }
-      throw new AuthenticationError("You need to be logged in!");
+    addGameTime: async (parent, { timedName, duration, userid }) => {
+      // Create and return the new School object
+      return await TimedGames.create({ timedName, duration, userid });
     },
-    removeTimedGame: async (parent, { timedGameId }, context) => {
-      if (context.user) {
-        const timedGame = await TimedGame.findOneAndDelete({
-          _id: timedGame,
-          username: context.user.username,
-        });
-        await User.findOneAndUpdate(
-          { _id: context.user._id },
-          { $pull: { timedGames: timedGame._id } }
-        );
 
-        return timedGame;
-      }
-      throw new AuthenicationError("You need to be logged in!");
+    updateScoredGame: async (parent, { _id, scoredName, score, userid }) => {
+      // Find and update the matching class using the destructured args
+      const game = await ScoredGames.findOne({ _id: _id });
+      console.log(game);
+      if (!scoredName) scoredName = game.scoredName;
+      if (!score) score = game.score;
+      if (!userid) userid = game.userid;
+      return await ScoredGames.findOneAndUpdate(
+        { _id: _id },
+        { scoredName, score, userid },
+        //Return the newly updated object instead of the original
+        { new: true }
+      );
     },
-    removeScoredGame: async (parent, { scoredGameId }, context) => {
-      if (context.user) {
-        const scoredGame = await ScoredGame.findOneAndDelete({
-          _id: scoredGame,
-          username: context.user.username,
-        });
-        await User.findOneAndUpdate(
-          { _id: context.user._id },
-          { $pull: { timedGames: timedGame._id } }
-        );
 
-        return scoredGame;
-      }
-      throw new AuthenicationError("You need to be logged in!");
+    updateTimedGame: async (parent, { _id, timedName, duration, userid }) => {
+      // Find and update the matching class using the destructured args
+      const game = await TimedGames.findOne({ _id: _id });
+      console.log(game);
+      if (!timedName) timedName = game.timedName;
+      if (!duration) duration = game.duration;
+      if (!userid) userid = game.userid;
+      return await TimedGames.findOneAndUpdate(
+        { _id: _id },
+        { timedName, duration, userid },
+        //Return the newly updated object instead of the original
+        { new: true }
+      );
+    },
+
+    // updateUser: async (parent, args, context) => {
+    //   if (context.user) {
+    //     return User.findByIdAndUpdate(context.user.id, args, {
+    //       new: true,
+    //     });
+    //   }
+
+    //   throw new AuthenticationError("Not logged in");
+    // },
+
+    removeScoredGame: async (parent, { _id }) => {
+      return ScoredGames.findOneAndDelete({ _id: _id });
+    },
+
+    removeTimedGame: async (parent, { _id }) => {
+      return TimedGames.findOneAndDelete({ _id: _id });
     },
   },
 };
+module.exports = resolvers;

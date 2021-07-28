@@ -13,6 +13,11 @@ const UsersSchema = new Schema({
     required: true,
     minlength: 5,
   },
+  userid: {
+    type: Number,
+    required: true,
+    minlength: 3,
+  },
 });
 
 UsersSchema.pre("save", async function (next) {
